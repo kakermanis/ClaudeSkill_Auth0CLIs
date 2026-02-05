@@ -14,12 +14,14 @@
   },
   "permissions": {
     "allow": [
-      "Bash(./scripts/current-tenant.sh)",
       "Bash(./scripts/check-dependencies.sh)",
+      "Bash(./scripts/create-config.sh)",
+      "Bash(./scripts/current-tenant.sh)",
+      "Bash(./scripts/dashboard.sh)",
       "Bash(./scripts/list-tenants.sh)",
       "Bash(./scripts/load-tenant.sh)",
-      "Bash(./scripts/store-tenant.sh)",
-      "Bash(./scripts/dashboard.sh)"
+      "Bash(./scripts/remove-tenant.sh)",
+      "Bash(./scripts/store-tenant.sh)"
     ]
   }
 }

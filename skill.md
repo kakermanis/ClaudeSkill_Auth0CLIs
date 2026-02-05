@@ -4,6 +4,11 @@ This skill enables Claude to assist Auth0 developers with comprehensive tenant m
 
 ## Quick Reference: Script Commands
 
+**Dependency Checking:**
+```bash
+./scripts/check-dependencies.sh                  # Check for required tools
+```
+
 **Credential Management:**
 ```bash
 ./scripts/store-tenant.sh <tenant>              # Store credentials (interactive)
@@ -106,6 +111,23 @@ This skill provides Claude with knowledge and tools to:
 - Execute Auth0 CLI commands for tenant management
 - Follow Auth0 best practices and project conventions
 - Use environment variables for deployment (no config.json needed)
+
+## Prerequisites
+
+**Required Tools:**
+- **Auth0 CLI**: `brew tap auth0/auth0-cli && brew install auth0`
+- **Auth0 Deploy CLI**: `npm install -g auth0-deploy-cli`
+
+**Optional Tools:**
+- **Auth0 MCP Server**: `npm install -g @auth0/auth0-mcp-server` (for private cloud tenants)
+- **Node.js/npm**: Required for Deploy CLI and MCP Server
+
+**Check Dependencies:**
+```bash
+./scripts/check-dependencies.sh
+```
+
+This script verifies all required tools are installed and sets `AUTH0_MCP_AVAILABLE` environment variable. MCP Server commands are automatically skipped if not available.
 
 ## Core Components
 

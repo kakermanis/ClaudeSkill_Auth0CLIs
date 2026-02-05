@@ -19,6 +19,19 @@ fi
 # Source core library for direct access to helper functions
 . "${_AUTH0_SCRIPT_DIR}/lib/auth0-core.sh"
 
+# Check dependencies on first load (only once per session)
+if [ -z "$AUTH0_HELPERS_LOADED" ]; then
+    if [ -f "${_AUTH0_SCRIPT_DIR}/check-dependencies.sh" ]; then
+        # Run dependency check
+        if ! "${_AUTH0_SCRIPT_DIR}/check-dependencies.sh" --quiet; then
+            echo ""
+            echo "⚠ Some dependencies are missing. Run './scripts/check-dependencies.sh' for details."
+            echo ""
+        fi
+    fi
+    export AUTH0_HELPERS_LOADED=true
+fi
+
 # Add new tenant credentials (interactive)
 auth0_add() {
     "${_AUTH0_SCRIPT_DIR}/store-tenant.sh" "$@"
@@ -138,6 +151,12 @@ auth0_export() {
 
 # MCP Server: Check current session
 auth0_mcp_session() {
+    if [ "$AUTH0_MCP_AVAILABLE" = "false" ]; then
+        echo "Auth0 MCP Server is not available"
+        echo "Run './scripts/check-dependencies.sh' for installation instructions"
+        return 1
+    fi
+
     if command -v npx > /dev/null 2>&1; then
         npx @auth0/auth0-mcp-server session
     else
@@ -149,6 +168,12 @@ auth0_mcp_session() {
 
 # MCP Server: Logout from current tenant
 auth0_mcp_logout() {
+    if [ "$AUTH0_MCP_AVAILABLE" = "false" ]; then
+        echo "Auth0 MCP Server is not available"
+        echo "Run './scripts/check-dependencies.sh' for installation instructions"
+        return 1
+    fi
+
     if command -v npx > /dev/null 2>&1; then
         npx @auth0/auth0-mcp-server logout
         echo "✓ Logged out of Auth0 MCP Server"
@@ -161,6 +186,12 @@ auth0_mcp_logout() {
 
 # MCP Server: Initialize with current tenant
 auth0_mcp_init() {
+    if [ "$AUTH0_MCP_AVAILABLE" = "false" ]; then
+        echo "Auth0 MCP Server is not available"
+        echo "Run './scripts/check-dependencies.sh' for installation instructions"
+        return 1
+    fi
+
     if [ -z "$AUTH0_DOMAIN" ] || [ -z "$AUTH0_CLIENT_ID" ] || [ -z "$AUTH0_CLIENT_SECRET" ]; then
         echo "Error: No tenant loaded"
         echo "Use 'auth0_load <tenant>' first to load credentials"
@@ -183,6 +214,12 @@ auth0_mcp_init() {
 
 # MCP Server: Switch to loaded tenant (logout + init)
 auth0_mcp_switch() {
+    if [ "$AUTH0_MCP_AVAILABLE" = "false" ]; then
+        echo "Auth0 MCP Server is not available"
+        echo "Run './scripts/check-dependencies.sh' for installation instructions"
+        return 1
+    fi
+
     if [ -z "$AUTH0_DOMAIN" ]; then
         echo "Error: No tenant loaded"
         echo "Use 'auth0_load <tenant>' first"

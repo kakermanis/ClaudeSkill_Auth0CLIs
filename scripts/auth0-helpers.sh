@@ -136,6 +136,71 @@ auth0_export() {
     fi
 }
 
+# MCP Server: Check current session
+auth0_mcp_session() {
+    if command -v npx > /dev/null 2>&1; then
+        npx @auth0/auth0-mcp-server session
+    else
+        echo "Error: npx not found"
+        echo "Install Node.js to use Auth0 MCP Server"
+        return 1
+    fi
+}
+
+# MCP Server: Logout from current tenant
+auth0_mcp_logout() {
+    if command -v npx > /dev/null 2>&1; then
+        npx @auth0/auth0-mcp-server logout
+        echo "✓ Logged out of Auth0 MCP Server"
+    else
+        echo "Error: npx not found"
+        echo "Install Node.js to use Auth0 MCP Server"
+        return 1
+    fi
+}
+
+# MCP Server: Initialize with current tenant
+auth0_mcp_init() {
+    if [ -z "$AUTH0_DOMAIN" ] || [ -z "$AUTH0_CLIENT_ID" ] || [ -z "$AUTH0_CLIENT_SECRET" ]; then
+        echo "Error: No tenant loaded"
+        echo "Use 'auth0_load <tenant>' first to load credentials"
+        return 1
+    fi
+
+    if command -v npx > /dev/null 2>&1; then
+        echo "Configuring MCP Server for tenant: $AUTH0_CUSTOMER"
+        npx @auth0/auth0-mcp-server init \
+            --auth0-domain "$AUTH0_DOMAIN" \
+            --auth0-client-id "$AUTH0_CLIENT_ID" \
+            --auth0-client-secret "$AUTH0_CLIENT_SECRET"
+        echo "✓ MCP Server configured for: $AUTH0_CUSTOMER"
+    else
+        echo "Error: npx not found"
+        echo "Install Node.js to use Auth0 MCP Server"
+        return 1
+    fi
+}
+
+# MCP Server: Switch to loaded tenant (logout + init)
+auth0_mcp_switch() {
+    if [ -z "$AUTH0_DOMAIN" ]; then
+        echo "Error: No tenant loaded"
+        echo "Use 'auth0_load <tenant>' first"
+        return 1
+    fi
+
+    # Check if MCP Server has active session
+    if command -v npx > /dev/null 2>&1; then
+        if npx @auth0/auth0-mcp-server session > /dev/null 2>&1; then
+            echo "Logging out of current MCP Server session..."
+            npx @auth0/auth0-mcp-server logout
+        fi
+    fi
+
+    # Initialize with new tenant
+    auth0_mcp_init
+}
+
 # Show help for Auth0 helper functions
 auth0_help() {
     cat <<'EOF'
@@ -158,6 +223,12 @@ Configuration & Deployment:
 Utilities:
   auth0_dashboard [tenant]     Open Auth0 dashboard in browser
   auth0_help                   Show this help message
+
+MCP Server (optional):
+  auth0_mcp_session            Show current MCP Server session
+  auth0_mcp_init               Configure MCP Server with loaded tenant
+  auth0_mcp_switch             Switch MCP Server to loaded tenant (logout + init)
+  auth0_mcp_logout             Logout from MCP Server
 
 Environment Variables (set by auth0_load):
   $AUTH0_CUSTOMER              Current tenant name

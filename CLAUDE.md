@@ -41,7 +41,39 @@ scripts/
 
 Auth0 Deploy CLI automatically reads these environment variables, eliminating the need for config.json.
 
-### 3. Configuration Structure
+### 3. Auth0 MCP Server (Optional) - Unified M2M Authentication
+
+**Authentication**: Can use the SAME M2M credentials as CLI tools!
+
+**For Private Cloud Tenants** (Okta SE use case):
+```bash
+# Store credentials once
+./scripts/store-tenant.sh okta-demo --with-mcp
+
+# OR configure MCP Server for already-stored tenant
+source ./scripts/auth0-helpers.sh
+auth0_load okta-demo
+auth0_mcp_init
+```
+
+**Session Management**:
+- `auth0_mcp_session` - View current MCP Server tenant
+- `auth0_mcp_switch` - Switch MCP Server to loaded tenant
+- `auth0_mcp_logout` - Logout from MCP Server
+
+**Unified Authentication Benefits**:
+- ✅ Single M2M credential set per tenant
+- ✅ Works with private cloud instances
+- ✅ Multi-tenant support (logout + init to switch)
+- ✅ All tools (auth0 CLI, a0deploy, MCP) use same credentials
+
+**When to Use**:
+- MCP Server: Use MCP tools directly when available (no persistent shell needed)
+- CLI Scripts: Use persistent background shell pattern for `auth0` CLI and `a0deploy` commands
+
+**Docs**: [Auth0 MCP Server](https://auth0.com/docs/get-started/auth0-mcp-server/getting-started-with-auth0-mcp-server) | [GitHub](https://github.com/auth0/auth0-mcp-server)
+
+### 4. Configuration Structure
 
 Default directory: `Auth0Tenant/` (follows Auth0 Deploy CLI conventions)
 
@@ -99,6 +131,23 @@ auth0_dashboard                 # Open dashboard
 auth0_help                      # Show all commands
 ```
 
+**Pattern 3: Claude Code Persistent Shell** (for Claude Code operations)
+```bash
+# Start persistent background shell once per session (use run_in_background: true)
+source ./scripts/auth0-helpers.sh && auth0_load dev-tenant
+
+# All subsequent commands use the same background shell (same task_id)
+a0deploy export -f yaml -o Auth0Tenant/
+a0deploy import -i Auth0Tenant/
+auth0 apps list
+auth0_dashboard
+
+# Switch tenant if needed (rare, overwrites env vars)
+auth0_load prod-tenant
+```
+
+**Key principle for Claude Code**: Each Bash command runs in a fresh shell, so environment variables don't persist. Use a persistent background shell (run_in_background: true) to maintain loaded credentials across multiple Auth0 operations.
+
 ### Auth0 Deploy CLI (Primary Deployment Tool)
 
 **With environment variables** (preferred):
@@ -134,6 +183,28 @@ a0deploy import -i Auth0Tenant/
 ## Key Conventions for Claude
 
 When assisting users with Auth0 development:
+
+### Claude Code Operations (Your Context)
+
+When YOU are operating within Claude Code:
+
+1. **Use persistent background shell for all Auth0 operations**:
+   - First Auth0 operation: Start background shell with `source ./scripts/auth0-helpers.sh && auth0_load <tenant>` (use `run_in_background: true`)
+   - Track the task_id
+   - All subsequent Auth0/a0deploy commands use the same background shell (same task_id)
+
+2. **Never use these approaches in Claude Code**:
+   - ❌ `eval $(./scripts/load-tenant.sh)` - Doesn't work in Claude Code
+   - ❌ Command chaining with `&&` for every operation
+   - ❌ Creating config.json files with credentials
+
+3. **Tenant switching**: Simply load different tenant in the same shell (`auth0_load other-tenant`)
+
+4. **MCP Server**: If Auth0 MCP Server is available, use MCP tools directly (different auth mechanism)
+
+### User Instructions (Their Terminal)
+
+When instructing users to run commands in their own terminal:
 
 ### Resource Creation
 1. **Always use `Auth0Tenant/` as the default directory name** (not `tenant/`)

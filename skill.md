@@ -31,6 +31,72 @@ auth0_export                                    # Export
 auth0_help                                      # Show all commands
 ```
 
+## Working with Claude Code
+
+**IMPORTANT**: When operating within Claude Code, each Bash command runs in a fresh shell, so environment variables don't persist between commands. The solution is to use a **persistent background shell**.
+
+### Setup Pattern (Once Per Session)
+
+1. **Start a persistent background shell and load tenant credentials:**
+   ```bash
+   source ./scripts/auth0-helpers.sh && auth0_load <tenant-name>
+   ```
+   Use `run_in_background: true` parameter in the Bash tool call.
+
+2. **All subsequent Auth0 CLI and Deploy CLI commands use the same background shell:**
+   ```bash
+   # Export configuration
+   a0deploy export -f yaml -o Auth0Tenant/
+
+   # Deploy changes
+   a0deploy import -i Auth0Tenant/
+
+   # Use Auth0 CLI
+   auth0 apps list
+   ```
+   All commands run in the same background shell (use the same task_id).
+
+3. **Switch tenants if needed (rare within a single session):**
+   ```bash
+   auth0_load <different-tenant>
+   ```
+   Simply load a different tenant - environment variables are overwritten.
+
+### Key Points for Claude Code Operations
+
+- **ONE persistent shell per Claude Code session** - Start it when first needed
+- **Environment variables persist** - No need to reload tenant for each command
+- **Tenant switching is easy** - Just load a different tenant (overwrites env vars)
+- **Avoid config.json** - No credentials in files, everything stays in keychain
+- **MCP Server is different** - MCP Server has its own authentication, doesn't need this shell pattern
+
+### Example Claude Code Workflow
+
+```bash
+# First Auth0 operation in session - start background shell
+source ./scripts/auth0-helpers.sh && auth0_load dev-tenant
+# (use run_in_background: true, track task_id)
+
+# Later operations - use same background shell
+a0deploy export -f yaml -o Auth0Tenant/
+# (use same task_id)
+
+# Make changes to files...
+
+# Deploy - still same background shell
+a0deploy import -i Auth0Tenant/
+# (use same task_id)
+
+# Open dashboard
+auth0_dashboard
+# (use same task_id)
+```
+
+**DO NOT** use these anti-patterns:
+- ❌ Chaining commands with `&&` for every operation
+- ❌ Creating config.json with credentials
+- ❌ Using `eval $(./scripts/load-tenant.sh)` (doesn't work in Claude Code)
+
 ## Overview
 
 This skill provides Claude with knowledge and tools to:
@@ -110,6 +176,35 @@ a0deploy export -c config.json -f yaml -o tenant/
 ### 3. Auth0 MCP Server
 Model Context Protocol server for Auth0 operations (if installed).
 
+**Documentation**:
+- [Getting Started Guide](https://auth0.com/docs/get-started/auth0-mcp-server/getting-started-with-auth0-mcp-server)
+- [GitHub Repository](https://github.com/auth0/auth0-mcp-server)
+
+**Authentication Methods**:
+1. **Device Authorization Flow** (Public Cloud): Interactive browser-based auth
+2. **Client Credentials (M2M)** (Private Cloud): Uses same credentials as CLI tools
+
+**For Private Cloud Tenants (Okta/Auth0)**:
+```bash
+npx @auth0/auth0-mcp-server init \
+  --auth0-domain <domain> \
+  --auth0-client-id <client-id> \
+  --auth0-client-secret <client-secret>
+```
+
+**Session Management Commands**:
+- `npx @auth0/auth0-mcp-server session` - View current authenticated tenant
+- `npx @auth0/auth0-mcp-server logout` - Logout from current tenant
+- `npx @auth0/auth0-mcp-server init` - Initialize/switch tenant
+
+**Unified Authentication**: MCP Server can use the SAME M2M credentials stored in keychain as CLI tools, enabling:
+- ✅ Single credential set per tenant
+- ✅ Works with private cloud instances
+- ✅ Multi-tenant support via session switching
+- ✅ All tools (auth0 CLI, a0deploy, MCP) use same credentials
+
+**Important for Claude**: When MCP Server is configured with M2M credentials from keychain, it does NOT require the persistent background shell pattern. Use MCP tools directly when available - they handle authentication transparently.
+
 **Common Operations via MCP:**
 - Reading tenant configurations
 - Updating configurations
@@ -156,6 +251,9 @@ There are **two approaches** for managing credentials:
 
    # Non-interactive mode
    ./scripts/store-tenant.sh dev-tenant dev.us.auth0.com abc123 secret456
+
+   # With MCP Server integration (for private cloud tenants)
+   ./scripts/store-tenant.sh dev-tenant --with-mcp
    ```
 
 2. **Load Tenant Credentials (exports environment variables):**
@@ -237,6 +335,12 @@ auth0_unload
 
 # Remove tenant
 auth0_remove dev-tenant
+
+# MCP Server functions (optional)
+auth0_mcp_session       # Show current MCP Server session
+auth0_mcp_init          # Configure MCP with loaded tenant
+auth0_mcp_switch        # Switch MCP to loaded tenant
+auth0_mcp_logout        # Logout from MCP Server
 
 # Show help
 auth0_help
@@ -526,7 +630,32 @@ auth0_current              # Shows new tenant
 
 When users request Auth0 operations, Claude should:
 
-### For Credential Management:
+### For Claude Code Sessions:
+1. **On first Auth0 operation**: Start a persistent background shell
+   ```bash
+   source ./scripts/auth0-helpers.sh && auth0_load <tenant>
+   ```
+   Use `run_in_background: true` and track the task_id for all subsequent operations.
+
+2. **For all subsequent Auth0 operations**: Use the same background shell (same task_id)
+   - Export: `a0deploy export -f yaml -o Auth0Tenant/`
+   - Deploy: `a0deploy import -i Auth0Tenant/`
+   - Auth0 CLI: `auth0 apps list`, `auth0 logs tail`, etc.
+
+3. **Tenant switching** (rare): Load different tenant in the same shell
+   ```bash
+   auth0_load <different-tenant>
+   ```
+
+4. **Never use these in Claude Code**:
+   - ❌ `eval $(./scripts/load-tenant.sh)` - Doesn't work in Claude Code
+   - ❌ Chained commands with `&&` for every operation
+   - ❌ Creating config.json files with credentials
+
+### For User Terminal Sessions (Interactive):
+When instructing users to run commands in their own terminal:
+
+#### For Credential Management:
 1. **Check if tenant is loaded**: Use `./scripts/current-tenant.sh` or check if `$AUTH0_CUSTOMER` is set
 2. **If not loaded**: Instruct user to load tenant with `eval $(./scripts/load-tenant.sh <tenant>)`
 3. **If tenant not found**: Guide user to store credentials with `./scripts/store-tenant.sh`
@@ -601,22 +730,34 @@ Claude should use this skill when users:
 
 **User:** "Create an action that checks whether a user has enrolled for MFA and if not start the MFA enrollment flow"
 
-**Claude should:**
+**Claude should (in Claude Code):**
 1. Check if `Auth0Tenant/` directory exists
 2. Create `Auth0Tenant/actions/mfa-enrollment-check/` directory
 3. Generate `code.js` with MFA enrollment logic
 4. Generate `action.json` with proper configuration
-5. Suggest deployment: `eval $(./scripts/load-tenant.sh <tenant>)` then `a0deploy import -i Auth0Tenant/`
+5. If no background shell exists, start one: `source ./scripts/auth0-helpers.sh && auth0_load <tenant>` (run_in_background: true)
+6. Deploy using background shell: `a0deploy import -i Auth0Tenant/`
+
+**Claude should (instructing user):**
+1. Create the action files (same as above)
+2. Guide user to load tenant: `eval $(./scripts/load-tenant.sh <tenant>)`
+3. Guide user to deploy: `a0deploy import -i Auth0Tenant/`
 
 ### Deploying Changes
 
 **User:** "Deploy my local changes to my tenant"
 
-**Claude should:**
-1. Check if tenant is loaded: Look for `$AUTH0_CUSTOMER` or suggest `./scripts/current-tenant.sh`
+**Claude should (in Claude Code):**
+1. Check if background shell exists with loaded tenant
+2. If not, start one: `source ./scripts/auth0-helpers.sh && auth0_load <tenant-name>` (run_in_background: true)
+3. Deploy in background shell: `a0deploy import -i Auth0Tenant/`
+4. Optionally open dashboard in background shell: `auth0_dashboard`
+
+**Claude should (instructing user):**
+1. Check if tenant is loaded with user: `./scripts/current-tenant.sh`
 2. If not loaded: `eval $(./scripts/load-tenant.sh <tenant-name>)`
 3. Deploy: `a0deploy import -i Auth0Tenant/`
-4. Optionally suggest opening dashboard: `./scripts/dashboard.sh`
+4. Optionally: `./scripts/dashboard.sh`
 
 ### Managing Credentials
 

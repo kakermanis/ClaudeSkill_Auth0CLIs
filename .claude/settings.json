@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\n📘 Auth0 Development Assistant is available!\nLoad the skill: @skill ./skill.md\nOr use the /init command to check dependencies.\n'"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/current-tenant.sh)",
+      "Bash(./scripts/check-dependencies.sh)",
+      "Bash(./scripts/list-tenants.sh)",
+      "Bash(./scripts/load-tenant.sh)",
+      "Bash(./scripts/store-tenant.sh)",
+      "Bash(./scripts/dashboard.sh)"
+    ]
+  }
+}

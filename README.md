@@ -2,6 +2,21 @@
 
 A comprehensive Claude Code skill that enables Auth0 developers to leverage Claude as a coding assistant for Auth0 tenant management, configuration deployment, and secure credential handling.
 
+## 🚀 Use as GitHub Template
+
+**Create your Auth0 project from this template:**
+
+1. Click "Use this template" → "Create a new repository"
+2. Clone your new repository
+3. Run `./scripts/check-dependencies.sh` to verify required tools
+4. Run `./scripts/store-tenant.sh your-tenant-name` to add credentials
+5. Open in Claude Code and the skill loads automatically!
+
+When you open Claude Code in your new repo:
+- Session start displays a reminder to load the skill with `@skill ./skill.md`
+- All scripts and configuration are ready to use
+- See [README.template.md](README.template.md) for the user-facing README
+
 ## Overview
 
 This skill teaches Claude how to:

@@ -147,4 +147,4 @@ config.*.json
 auth0-deploy-config-export/
 
 draft*
-.claude*
+.claude/settings.local.json
